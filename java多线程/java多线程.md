@@ -774,3 +774,135 @@ notify()方法，唤醒一个因wait操作而处于阻塞状态的线程，使�
 使每个线程绑定自己的值。
 
 可以将ThreadLocal类比喻成 全局存放数据的盒子，盒子中可以存储每个线程的私有数据
+
+
+
+## 第四章
+
+Lock的使用
+
+
+
+## 第五章
+
+### 定时器Timer类
+
+主要负责计划任务的功能，也就是在指定的时间开始执行某一个任务。
+
+封装任务的类是TimerTask类，执行计划任务的代码要放入TimerTask的子类中
+
+
+
+### schedule(TimerTask task,Date time)
+
+作用：在指定的日期执行一次某一任务。
+
+- 执行任务的时间 晚于 当前时间：（还没到执行时间）在未来执行
+
+~~~java
+
+    private static Timer timer=new Timer(true);//true 将Timer新创建的线程改为守护线程
+    public static class MyTask extends TimerTask {
+        @Override
+        public void run() {
+            System.out.println("运行了！时间："+new Date());//还没到执行时间，会在未来执行的任务
+        }
+    }
+
+    public static void main(String[] args) {
+        try {
+            MyTask task =new MyTask();
+            SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+            String dateString="2020-02-28 4:12:00"; //执行任务的时间
+            Date dateRef=sdf.parse(dateString);
+            System.out.println("字符串时间："+dateRef.toLocaleString()+"当前时间："+new Date().toLocaleString());
+            timer.schedule(task,dateRef);
+        }catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+~~~
+
+- 执行任务的时间 早于 当前时间：（已经过了执行的时间）立即执行
+
+
+
+多个TimerTask任务及延时：
+
+TimerTask是以 **队列**  的方式一个一个被顺序执行的，所以执行的时间有可能和预期的时间不一致。
+
+
+
+### schedule(TimerTask task,Date firstTime,long period)
+
+作用：在指定的日期之后，按指定的间隔周期无限循环
+
+
+
+~~~java
+ private static Timer timer=new Timer();//true 将Timer新创建的线程改为守护线程
+    public static class MyTask extends TimerTask {
+        @Override
+        public void run() {
+            System.out.println("运行了！时间："+new Date());
+        }
+    }
+
+    public static void main(String[] args) {
+        try {
+            MyTask task =new MyTask();
+            SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+            String dateString="2020-02-28 4:32:00";
+            Date dateRef=sdf.parse(dateString);
+            System.out.println("字符串时间："+dateRef.toLocaleString()+"当前时间："+new Date().toLocaleString());
+            timer.schedule(task,dateRef,4000); //每隔4000毫秒，就运行一次run()
+        }catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+~~~
+
+
+
+
+
+### cancel()
+
+TimerTask中cancel()的作用：将自身从任务队列中清除，其它任务不受影响
+
+使用：this.cancel();
+
+
+
+Timer类中的cancel()的作用：将任务队列中全部任务清空。
+
+使用：timer.cancel();
+
+Timer类中的cancel()有时候不会停止执行计划任务（没有争抢到queue锁），所以TimerTask类的计划任务会继续执行
+
+
+
+### schedule(TimerTask task,long delay)
+
+作用：以执行schedule(TimerTask task,long delay)方法当前时间为参考，在此基础上延迟指定的毫秒数（执行计划任务）
+
+
+
+### schedule(TimerTask task,long delay,long period)
+
+作用：以执行schedule(TimerTask task,long delay)方法当前时间为参考，在此基础上延迟指定的毫秒数（间隔指定的时间无限执行计划任务）
+
+
+
+### schedule与scheduleAtFixedRate
+
+相同点：
+
+- 都按顺序执行
+- 如果执行的任务被延时，那么下一次执行的任务时间是上一次任务“结束”时间来计算。
+
+不同点：
+
+- schedule：不具有追赶执行性
+- scheduleAtFixedRate:具有追赶执行性（执行任务时间<= 当前时间，scheduleAtFixedRate会在当前时间运行run(),把之前的执行任务“补”回来）
+
