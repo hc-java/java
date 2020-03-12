@@ -248,6 +248,7 @@ select * from 表1  right join 表2 on 条件((表1.字段=表2.字段));
 ```
 
 ```mysql
+//表已经创建好了，可以使用这种方法
 //使 t_role_permission(从表) 中的 permission_id，作为 t_permission（主表） 中 id 的外键
 alter table t_role_permission
 add constraint  `fk` foreign key (`permission_id`) references t_permission(`id`);
@@ -255,6 +256,17 @@ add constraint  `fk` foreign key (`permission_id`) references t_permission(`id`)
 
 ~~~mysql
 
+//也可以在创建表的时候，在从表中添加外键 foreign key(uid) references user(uid)
+create table user(
+	uid int(4) primary key,
+	uname varchar(6)
+);
+create table orders(
+	oid int(4) primary key,
+	price double(6,2),
+	uid int(4),
+	foreign key(uid) references user(uid)
+);
 
 ~~~
 
@@ -310,5 +322,14 @@ add constraint fk foreign key (`permission_id`) references t_permission(`id`) on
 alter table t_role_permission
 drop foreign key fk;
 
+~~~
+
+
+
+## 查看外键
+
+~~~mysql
+//这个命令可以查看表的所有信息，包括一些字段类型，字段的约束，外键，主键，索引，字符编码等等。
+show create table 表名;
 ~~~
 
