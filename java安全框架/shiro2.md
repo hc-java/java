@@ -1247,11 +1247,262 @@ public class MyRealm extends AuthorizingRealm {
 
 # 记住我
 
+部分参考：
+
 <https://blog.csdn.net/xslde_com/article/details/81137904>
 
+
+
+执行：先加载ShiroConfig ==》进入login.html页面 ==》点击“登录”，进入Controller 的 login 方法 ==>执行到  subject.login(token); ==》进入自定义 Realm 的认证(doGetAuthenticationInfo)方法 ==》 执行 subject.login(token); 下面的代码
+
+## ShiroConfig.java
+
+在 Filter工厂，添加了 记住我 和 登出；添加了 rememberMeCookie 、 rememberMeManager 、 formAuthenticationFilter配置
+
 ~~~java
-// 			
-token.setRememberMe(true);
-            subject.login(token);
+
+/*======================== 安全管理器 ===================================  */
+@Bean
+public DefaultWebSecurityManager  securityManager(MyRealm myRealm) {
+    DefaultWebSecurityManager securityManager = new DefaultWebSecurityManager();
+   
+    //securityManager.setRealm(myRealm);  //不能用这个，因为有设置加密
+    //使用了密码凭证使用，并注调上一行
+    securityManager.setRealm(myRealm(hashedCredentialsMatcher()));
+
+    //记住我
+    securityManager.setRememberMeManager(rememberMeManager());
+
+    return securityManager;
+}
+    /*======================== 密码凭证器 ===================================  */
+    @Bean
+    public HashedCredentialsMatcher hashedCredentialsMatcher() {
+        HashedCredentialsMatcher hashedCredentialsMatcher = new HashedCredentialsMatcher();
+        hashedCredentialsMatcher.setHashAlgorithmName("MD5");//散列算法:MD2、MD5、SHA-1、SHA-256、SHA-384、SHA-512等。
+        hashedCredentialsMatcher.setHashIterations(1024);//散列的次数，默认1次， 设置两次相当于 md5(md5(""));
+        return hashedCredentialsMatcher;
+    }
+
+
+    /*=================== 自定义 realm=====================*/
+ /*   @Bean
+    public MyRealm myRealm() {
+        MyRealm myRealm = new MyRealm();
+        return myRealm;
+    }*/
+    //使用了密码凭证使用下列方法
+    @Bean
+    public MyRealm myRealm(HashedCredentialsMatcher hashedCredentialsMatcher) {
+        MyRealm myRealm = new MyRealm();
+        myRealm.setCredentialsMatcher(hashedCredentialsMatcher);
+        return myRealm;
+    }
+
+    /*================= Filter工厂，设置对应的过滤条件和跳转条件 =========================  */
+    //
+    @Bean
+    public ShiroFilterFactoryBean shiroFilterFactoryBean(DefaultWebSecurityManager securityManager) {
+        ShiroFilterFactoryBean shiroFilterFactoryBean = new ShiroFilterFactoryBean();
+        //设置安全管理器
+        shiroFilterFactoryBean.setSecurityManager(securityManager);
+
+
+        Map<String, String> filterMap = new LinkedHashMap<String, String>();
+        //login 无需认证就可以访问
+        //filterMap.put("/", "anon");
+        filterMap.put("/login","anon");
+
+        //授权过滤器
+        //注意：当前授权拦截后，shiro会自动跳转到未授权页面
+        filterMap.put("/user/update","perms[student:yq]");  //加了这句，才会执行用户授权方法；如果 perm[] 里面的权限与数据库中不同，则跳转到未授权页面
+
+        //记住我：        user：如果使用RememberMe的功能可以直接访问
+        filterMap.put("/user/main","user");
+
+        //登出
+        filterMap.put("/user/logout","logout");
+
+        //使用通配符，让所有的页面都必须认证才可以访问
+        filterMap.put("/**","authc");
+
+
+
+
+
+        //修改调整的登录页面,不然 默认跳到 xx.jsp 页面
+        shiroFilterFactoryBean.setLoginUrl("/login");
+        //设置未授权提示页面
+        shiroFilterFactoryBean.setUnauthorizedUrl("/noAuth");
+
+        shiroFilterFactoryBean.setFilterChainDefinitionMap(filterMap);
+
+        return shiroFilterFactoryBean;
+    }
+
+    /*================= 加入注解的使用，不加入这个注解不生效 =========================  */
+    @Bean
+    public AuthorizationAttributeSourceAdvisor authorizationAttributeSourceAdvisor(DefaultWebSecurityManager securityManager) {
+        AuthorizationAttributeSourceAdvisor authorizationAttributeSourceAdvisor = new AuthorizationAttributeSourceAdvisor();
+        authorizationAttributeSourceAdvisor.setSecurityManager(securityManager);
+        return authorizationAttributeSourceAdvisor;
+    }
+
+    //cookie对象;会话Cookie模板 ,默认为: JSESSIONID 问题: 与SERVLET容器名冲突,重新定义为sid或rememberMe，自定义
+    @Bean
+    public SimpleCookie rememberMeCookie() {
+        //这个参数是cookie的名称，对应前端的checkbox的name = rememberMe
+        SimpleCookie simpleCookie = new SimpleCookie("rememberMe");
+        //setcookie的httponly属性如果设为true的话，会增加对xss防护的安全系数。它有以下特点：
+
+        //setcookie()的第七个参数
+        //设为true后，只能通过http访问，javascript无法访问
+        //防止xss读取cookie
+        simpleCookie.setHttpOnly(true);
+        simpleCookie.setPath("/");
+        //<!-- 记住我cookie生效时间30天 ,单位秒;-->
+        simpleCookie.setMaxAge(2592000);
+        return simpleCookie;
+
+    }
+
+    //cookie管理对象;记住我功能,rememberMe管理器
+    @Bean
+    public CookieRememberMeManager rememberMeManager(){
+        CookieRememberMeManager cookieRememberMeManager = new CookieRememberMeManager();
+        cookieRememberMeManager.setCookie(rememberMeCookie());
+        //这个地方有点坑，不是所有的base64编码都可以用，长度过大过小都不行，没搞明白，官网给出的要么0x开头十六进制，要么base64
+        //rememberMe cookie加密的密钥 建议每个项目都不一样 默认AES算法 密钥长度(128 256 512 位)
+        cookieRememberMeManager.setCipherKey(Base64.decode("4AvVhmFLUs0KTA3Kprsdag=="));
+        return cookieRememberMeManager;
+    }
+
+    /**
+     * FormAuthenticationFilter 过滤器 过滤记住我
+     * @return
+     */
+    @Bean
+    public FormAuthenticationFilter formAuthenticationFilter(){
+        FormAuthenticationFilter formAuthenticationFilter = new FormAuthenticationFilter();
+        //对应前端的checkbox的name = rememberMe
+        formAuthenticationFilter.setRememberMeParam("rememberMe");
+        return formAuthenticationFilter;
+    }
 ~~~
+
+## login.html
+
+~~~html
+<!DOCTYPE html>
+
+<html lang="en" xmlns:th="http://www.thymeleaf.org"
+      xmlns:shiro="http://www.pollix.at/thymeleaf/shiro">
+<head>
+    <meta charset="UTF-8">
+    <title>login</title>
+</head>
+<body>
+
+
+<h3 th:text="${msg}" style="color: red"></h3>
+
+<form action="login" method="post">
+    用户名：<input type="text" name="username"><br>
+    密码：<input type="password" name="password"><br>
+    记住我:<input type="checkbox" checked="checked"  name="rememberMe" /> <br>
+    <input type="submit" value="登录">
+
+</form>
+</body>
+</html>
+~~~
+
+
+
+## Controller
+
+~~~java
+ @PostMapping("login")
+    public String postLogin(TUser tUser,boolean rememberMe,Model model) {
+        System.out.println("进来了，这是post的login");
+
+
+        //使用shiro编写认证操作
+
+//        1.获取subject
+        Subject subject = SecurityUtils.getSubject();
+
+        //判断用户名和密码为空
+        if (StringUtils.isEmpty(tUser.getUsername())||StringUtils.isEmpty(tUser.getPassword())){
+            model.addAttribute("msg","用户名和密码不能为空！");
+            return "login.html";
+        }
+
+//        2.封装用户数据
+        UsernamePasswordToken token = new UsernamePasswordToken(tUser.getUsername(), tUser.getPassword(),rememberMe);
+        System.out.println("======================");
+        System.out.println(token);
+        System.out.println(token.getUsername());
+        System.out.println(token.getPassword());
+//        3.执行登录方法
+        try {
+//            token.setRememberMe(false);
+            System.out.println(token);
+            subject.login(token);
+            //登陆成功
+            //跳转到页面main.html
+            System.out.println("用户认证成功 ");
+
+            return "redirect:/user/main";
+
+            //return "test";
+        } catch (UnknownAccountException e) {
+            //登录失败：用户名不存在
+            System.out.println("用户不存在");
+            model.addAttribute("msg", "用户不存在");
+            return "login";
+        } catch (IncorrectCredentialsException e) {
+            //登录失败：密码错误
+            System.out.println("密码错误");
+            model.addAttribute("msg", "密码错误");
+            return "login";
+        }
+~~~
+
+## MyRealm.java
+
+和登陆解密（认证）的MyRealm 一样
+
+
+
+## 一个很有意思的问题
+
+Springboot 整合 Shiro 的 rememberMe 出现的问题
+
+
+
+org.apache.shiro.authc.UsernamePasswordToken - admin, rememberMe=true (0:0:0:0:0:0:0:1)
+
+第一次不能正常执行：
+
+```
+subject.login(token); ==》 登录认证(AuthenticationInfo) ==》 subject.login(token)下面的代码执行不了。
+本来应该跳转到 http://localhost:8080/user/main 页面，结果跳转到 http://localhost:8080/ 页面；重新打开编辑器，首次执行，结果http://localhost:8080/favicon.ico
+
+第二次都可以正常执行。
+```
+
+
+
+org.apache.shiro.authc.UsernamePasswordToken - admin, rememberMe=true
+
+能够正常执行，跳转到 user/main 页面
+
+
+
+~~猜测：rememberMe 的缓存没清空，但是换其它网页也是一样的情况。~~
+
+解决：经过大量的资料查询 以及 代码测试，最终锁定问题。问题是 ShiroConfig.java 里面的 securityManager.setRealm(myRealm(hashedCredentialsMatcher())); 
+
+​	  之前返回的是 securityManager.setRealm(myRealm); 导致第一次登录出现问题。
 
