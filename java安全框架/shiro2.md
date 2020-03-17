@@ -681,6 +681,14 @@ public class MyRealm extends AuthorizingRealm {
 
 ShiroConfig （设置  filterMap.put("/update","perms[student:yq]")）——》单击href链接——》UserRealm （先调用认证获取Principal,然后调用doGetAuthorizationInfo中info授权信息）——》有权限:   执行Conroller(update) ——》没权限：执行Conroller（noAuth）
 
+
+
+或者可以在 Controller 层或者 方法上面加 Shiro 注解
+
+@RequiresPermissions (value={“user:a”, “user:b”}, logical= Logical.OR)
+
+表示当前Subject需要权限user:a或user:b。
+
 ## main.html
 
 ~~~html
@@ -1241,9 +1249,15 @@ public class MyRealm extends AuthorizingRealm {
 
 是 Shiro 的核心组件，顶层组件 SecurityManager 直接继承了 SessionManager，且提供了 SessionsSecurityManager 实现直接把会话管理委托给相应的 SessionManager，DefaultSecurityManager 及 DefaultWebSecurityManager 默认 SecurityManager 都继承了 SessionsSecurityManager。
 
+![1584455376886](C:\Users\HC\AppData\Roaming\Typora\typora-user-images\1584455376886.png)
 
 
 
+![1584455515799](C:\Users\HC\AppData\Roaming\Typora\typora-user-images\1584455515799.png)
+
+
+
+![1584455546200](C:\Users\HC\AppData\Roaming\Typora\typora-user-images\1584455546200.png)
 
 # 记住我
 
@@ -1505,4 +1519,100 @@ org.apache.shiro.authc.UsernamePasswordToken - admin, rememberMe=true
 解决：经过大量的资料查询 以及 代码测试，最终锁定问题。问题是 ShiroConfig.java 里面的 securityManager.setRealm(myRealm(hashedCredentialsMatcher())); 
 
 ​	  之前返回的是 securityManager.setRealm(myRealm); 导致第一次登录出现问题。
+
+
+
+# Shiro注解
+
+<https://www.cnblogs.com/pingxin/p/p00115.html>
+
+**Shiro的认证注解处理是有内定的处理顺序的，如果有个多个注解的话，前面的通过了会继续检查后面的，若不通过则直接返回，处理顺序依次为（与实际声明顺序无关）：**
+
+* 角色：**RequiresRoles**
+* 权限：**RequiresPermissions** 
+* 身份验证：**RequiresAuthentication**  表示当前Subject已经通过login 进行了身份验证；即Subject. isAuthenticated()返回true。
+* 记住我：**RequiresUser**   表示当前Subject已经身份验证或者通过记住我登录的。
+* 游客：**RequiresGuest**     表示当前Subject没有身份验证或通过记住我登录过，即是游客身份。
+
+
+
+例子：
+
+@RequiresRoles(value={“admin”, “user”}, logical= Logical.AND)
+
+　　@RequiresRoles(value={“admin”})
+
+　　@RequiresRoles({“admin“})
+
+　　表示当前Subject需要角色admin 和user。
+
+
+
+@RequiresPermissions (value={“user:a”, “user:b”}, logical= Logical.OR)
+
+表示当前Subject需要权限user:a或user:b。
+
+
+
+RequiresAuthentication，RequiresUser，RequiresGuest 直接加@ 就可以了
+
+
+
+# Shiro标签
+
+先导入依赖
+
+~~~xml
+<dependency>
+    <groupId>com.github.theborakompanioni</groupId>
+    <artifactId>thymeleaf-extras-shiro</artifactId>
+    <version>2.0.0</version>
+</dependency>
+~~~
+
+
+
+在ShiroConfig.java 配置ShiroDialect
+
+~~~java
+@Bean
+ public ShiroDialect shiroDialect() {
+     return new ShiroDialect();
+ }
+~~~
+
+
+
+在html页面中要引入头文件
+
+```html
+<html lang="en" xmlns:th="http://www.thymeleaf.org"
+      xmlns:shiro="http://www.pollix.at/thymeleaf/shiro">
+```
+
+
+
+例子：
+
+~~~html
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org"
+      xmlns:shiro="http://www.pollix.at/thymeleaf/shiro">
+
+<head>
+    <title>首页</title>
+</head>
+<body>
+<h1>首页</h1>
+<hr>
+<ul>
+    <li><a href="user/index">个人中心</a></li>
+    <li><a href="vip/index">会员中心</a></li>
+    <p shiro:hasPermission="svip"><li>这是svip能看到的p标签</li></p>
+    <shiro:hasPermission name="svip"><li>这是svip能看到的</li></shiro:hasPermission>
+    <li><a href="logout">退出登录</a></li>
+</ul>
+</body>
+</html>
+~~~
 
