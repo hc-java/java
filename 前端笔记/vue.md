@@ -1463,3 +1463,83 @@ button{
 ~~~
 
 在本页面，不用路由，可以直接跳转到其他页面
+
+
+
+## Vue X
+
+安装vuex ：     npm install vuex --save
+
+### 简单的使用
+
+index.js中新增的路由
+
+~~~js
+import Count from '@/components/count'
+
+{
+      path:'/count',
+      component:Count
+    }
+~~~
+
+新建vuex文件夹，创建store.js
+
+~~~js
+import Vue from 'vue';
+import Vuex from 'vuex';
+Vue.use(Vuex);
+
+const state={
+    count:1
+}
+
+const mutations={
+    add(state){
+        state.count++;
+    },
+    reduce(state){
+        state.count--;
+    }
+}
+
+export default new Vuex.Store({
+    state,
+    mutations
+})
+
+
+~~~
+
+在components文件夹下创建Count.vue
+
+~~~vue
+
+<template>
+    <div>
+        <h2>{{msg}}</h2>
+        <h3>{{$store.state.count}}</h3>
+        <p>
+
+            <button @click="$store.commit('add')">+</button>
+            <button @click="$store.commit('reduce')">-</button>
+        </p>
+    </div>
+    
+</template>
+
+<script>
+import store from '@/vuex/store';
+
+export default {
+    data(){
+        return {
+            msg:'hello vuex'
+        }
+    },
+    store
+}
+</script>
+
+~~~
+
