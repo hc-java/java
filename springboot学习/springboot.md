@@ -48,19 +48,46 @@
 
 ![1575533151914](C:\Users\HC\AppData\Roaming\Typora\typora-user-images\1575533151914.png)
 
-### 5.热部署
+### 5.打包
+
+先在pom.xml加插件
+
+~~~xml
+			<plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+            </plugin>
+~~~
+
+
 
 点击package
 
 ![1575534337218](C:\Users\HC\AppData\Roaming\Typora\typora-user-images\1575534337218.png)
 
-打完包后，将这个jar包，复制到桌面
+打完包后，将这个jar包，复制到桌面(如果用spring initializr创建，可以在本地项目中找到target目录)。
 
 ![1575534414531](C:\Users\HC\AppData\Roaming\Typora\typora-user-images\1575534414531.png)
+
+windows从C盘到E盘：
+
+E：
+
+cd 路径
 
 在控制台中输入 java -jar 包名，然后在去页面访问。
 
 ![1575534578710](C:\Users\HC\AppData\Roaming\Typora\typora-user-images\1575534578710.png)
+
+
+
+点击这个clean，可以清除target目录
+
+![1585896127995](C:\Users\HC\AppData\Roaming\Typora\typora-user-images\1585896127995.png)
+
+
+
+
 
 Plugins显示红色：修改User ssettings file和Local repository
 
